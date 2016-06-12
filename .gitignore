@@ -1,0 +1,8 @@
+*.DS_Store
+*.pyc
+.settings/*
+.project
+.pydevproject
+build/*
+dist/*
+weppy_REST.egg-info/*
