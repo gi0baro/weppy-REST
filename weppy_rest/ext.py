@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+    weppy_rest.ext
+    --------------
+
+    Provides REST extension for weppy
+
+    :copyright: (c) 2016 by Giovanni Barillari
+    :license: BSD, see LICENSE for more details.
+"""
+
 from weppy.extensions import Extension
 from .serializers import Serializer
 from .filters import Filter

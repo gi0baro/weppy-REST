@@ -1,4 +1,13 @@
 # -*- coding: utf-8 -*-
+"""
+    weppy_rest.filters
+    ------------------
+
+    Provides REST de-serialization tools
+
+    :copyright: (c) 2016 by Giovanni Barillari
+    :license: BSD, see LICENSE for more details.
+"""
 
 from weppy._compat import iteritems
 from weppy import request, sdict

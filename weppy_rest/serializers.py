@@ -1,4 +1,13 @@
 # -*- coding: utf-8 -*-
+"""
+    weppy_rest.serializers
+    ----------------------
+
+    Provides REST serialization tools
+
+    :copyright: (c) 2016 by Giovanni Barillari
+    :license: BSD, see LICENSE for more details.
+"""
 
 from pydal.objects import Rows
 from weppy._compat import iteritems

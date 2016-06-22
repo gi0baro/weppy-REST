@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+    weppy_rest.appmodule
+    --------------------
+
+    Provides REST AppModule for weppy
+
+    :copyright: (c) 2016 by Giovanni Barillari
+    :license: BSD, see LICENSE for more details.
+"""
+
 from weppy import AppModule, sdict, request, response
 from weppy.tools import ServiceHandler
 from .helpers import SetFetcher, RecordFetcher
@@ -12,9 +23,9 @@ class RESTModule(AppModule):
         disabled_methods=[], list_envelope='data', single_envelope=None,
         url_prefix=None, hostname=None
     ):
-        self._fetcher_method = self._fetch_dbset
-        self._error_404 = self.build_error_404
-        self._error_422 = self.build_error_422
+        self._fetcher_method = self._get_dbset
+        self.error404 = self.build_error_404
+        self.error422 = self.build_error_422
         self._basic_handlers = [ServiceHandler('json')]
         self._common_handlers = []
         super(RESTModule, self).__init__(
@@ -50,6 +61,7 @@ class RESTModule(AppModule):
         pass
 
     def _after_initialize(self):
+        self.list_envelope = self.list_envelope or 'data'
         #: adjust single row serialization based on evenlope
         self.serialize_many = self.serialize_with_list_envelope
         self.serialize_one = self.serialize
@@ -96,7 +108,7 @@ class RESTModule(AppModule):
     def common_handlers(self, handlers):
         self._common_handlers = self._basic_handlers + handlers
 
-    def _fetch_dbset(self):
+    def _get_dbset(self):
         return self.model.all()
 
     def get_pagination(self):
@@ -109,7 +121,7 @@ class RESTModule(AppModule):
             page_size = int(
                 request.query_params[self._pagination.pagesize_param] or 20)
             assert (
-                self._pagination.min_pagesize < page_size <=
+                self._pagination.min_pagesize <= page_size <=
                 self._pagination.max_pagesize)
         except:
             page_size = self._pagination.default_pagesize
@@ -127,7 +139,7 @@ class RESTModule(AppModule):
         return _serialize(data, self.serializer)
 
     def serialize_with_list_envelope(self, data):
-        return {(self.list_envelope or 'data'): self.serialize(data)}
+        return {self.list_envelope: self.serialize(data)}
 
     def serialize_with_single_envelope(self, data):
         return {self.single_envelope: self.serialize(data)}
@@ -146,11 +158,10 @@ class RESTModule(AppModule):
 
     def _create(self):
         attrs = self.filter_params()
-        self.app.log.debug(attrs)
         r = self.model.create(**attrs)
         if r.errors:
             response.status = 422
-            return self._error_422(r.errors)
+            return self.error_422(r.errors)
         return self.serialize_one(r.id)
 
     def _update(self, dbset, rid):
@@ -158,17 +169,17 @@ class RESTModule(AppModule):
         r = dbset.where(self.model.id == rid).validate_and_update(**attrs)
         if r.errors:
             response.status = 422
-            return self._error_422(r.errors)
+            return self.error_422(r.errors)
         elif not r.updated:
             response.status = 404
-            return self._error_404()
+            return self.error_404()
         return self.serialize_one(self.model.get(rid))
 
     def _delete(self, dbset, rid):
         rv = dbset.where(self.model.id == rid).delete()
         if not rv:
             response.status = 404
-            return self._error_404()
+            return self.error_404()
         return {}
 
     #: decorators
@@ -203,9 +214,9 @@ class RESTModule(AppModule):
         return self.route(self._path_rid, handlers=handlers, methods='delete')
 
     def on_404(self, f):
-        self._error_404 = f
+        self.error_404 = f
         return f
 
     def on_422(self, f):
-        self._error_422 = f
+        self.error_422 = f
         return f

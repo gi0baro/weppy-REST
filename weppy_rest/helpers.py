@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+    weppy_rest.helpers
+    ------------------
+
+    Provides helpers for the REST extension
+
+    :copyright: (c) 2016 by Giovanni Barillari
+    :license: BSD, see LICENSE for more details.
+"""
+
 from weppy import Handler, response
 
 
@@ -18,7 +29,7 @@ class RecordFetcher(Handler):
 
     def build_error(self):
         response.status = 404
-        return self.mod._error_404()
+        return self.mod.error_404()
 
     def wrap_call(self, f):
         def wrap(**kwargs):
