@@ -468,4 +468,4 @@ There are some other methods you may need to override, like the `get_pagination`
 
 ## License
 
-weppy-Assets is released under BSD license. Check the LICENSE file for more details.
+weppy-REST is released under BSD license. Check the LICENSE file for more details.
