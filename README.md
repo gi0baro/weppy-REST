@@ -66,6 +66,7 @@ The `RESTModule` class accepts several parameters (*bold ones are required*) for
 | disabled_methods | `[]` | the routes that should be disabled on the module |
 | list_envelope | `'data'` | the envelope to use on the index route |
 | single_envelope | `None` | the envelope to use on all the routes except for index |
+| use\_envelope\_on\_filtering | `False` | if set to `True` will use the envelope specified in *single_envelope* option also on filtering |
 | url_prefix | `None` | see `AppModule` |
 | hostname | `None` | see `AppModule` |
 
@@ -439,6 +440,7 @@ Here is a list of variables you may want to change inside the `init` method:
 - disabled_methods
 - list_envelope
 - single_envelope
+- use\_envelope\_on\_filtering
 
 Also, this is the complete list of the handlers variables and their default values:
 

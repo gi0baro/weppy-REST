@@ -20,22 +20,22 @@ class Serializer(object):
     bind_to = None
 
     def __init__(self, model):
-        self._model_ = model
+        self._model = model
         if not self.attributes:
-            if hasattr(self._model_, 'rest_rw'):
+            readable_map = {}
+            for fieldname in self._model.table.fields:
+                readable_map[fieldname] = self._model.table[fieldname].readable
+            if hasattr(self._model, 'rest_rw'):
                 self.attributes = []
-                for key, value in iteritems(self._model_.rest_rw):
+                for key, value in iteritems(self._model.rest_rw):
                     if isinstance(value, tuple):
                         readable = tuple[0]
                     else:
                         readable = value
-                    if readable:
-                        self.attributes.append(key)
-            else:
-                self.attributes = [
-                    fieldname for fieldname in self._model_.table.fields
-                    if self._model_.table[fieldname].readable
-                ]
+                    readable_map[key] = readable
+            for fieldname, readable in iteritems(readable_map):
+                if readable:
+                    self.attributes.append(fieldname)
             self.attributes += self.include
             for el in self.exclude:
                 if el in self.attributes:
@@ -45,6 +45,10 @@ class Serializer(object):
             if not key.startswith('_') and callable(getattr(self, key)):
                 _attrs_override_.append(key)
         self._attrs_override_ = _attrs_override_
+        self.init()
+
+    def init(self):
+        pass
 
     def __call__(self, *args, **kwargs):
         return self.__serialize__(*args, **kwargs)

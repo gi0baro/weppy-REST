@@ -13,7 +13,8 @@ from weppy import AppModule, sdict, request, response
 from weppy.tools import ServiceHandler
 from .helpers import SetFetcher, RecordFetcher
 from .serializers import serialize as _serialize
-from .filters import filter_params as _filter_params
+from .filters import filter_params as _filter_params, \
+    filter_params_with_filter as _filter_params_wfilter
 
 
 class RESTModule(AppModule):
@@ -21,7 +22,7 @@ class RESTModule(AppModule):
         self, app, name, import_name, model, serializer=None, filter=None,
         enabled_methods=['index', 'get', 'create', 'update', 'delete'],
         disabled_methods=[], list_envelope='data', single_envelope=None,
-        url_prefix=None, hostname=None
+        use_envelope_on_filtering=False, url_prefix=None, hostname=None
     ):
         self._fetcher_method = self._get_dbset
         self.error404 = self.build_error_404
@@ -42,12 +43,14 @@ class RESTModule(AppModule):
         self._serializer_class = serializer or \
             self.ext.config.default_serializer
         self._filter_class = filter or self.ext.config.default_filter
+        self._filtering_params_kwargs = {}
         self.model = model
         self.serializer = self._serializer_class(self.model)
         self.filter = self._filter_class(self.model)
         self.enabled_methods = enabled_methods
         self.disabled_methods = disabled_methods
         self.list_envelope = list_envelope
+        self.use_envelope_on_filtering = use_envelope_on_filtering
         self.single_envelope = single_envelope
         self.index_handlers = [SetFetcher(self)]
         self.get_handlers = [SetFetcher(self), RecordFetcher(self)]
@@ -67,8 +70,10 @@ class RESTModule(AppModule):
         self.serialize_one = self.serialize
         if self.single_envelope:
             self.serialize_one = self.serialize_with_single_envelope
-            if self.filter.__class__ == self.ext.config.default_filter:
+            if self.use_envelope_on_filtering:
                 self.filter.envelope = self.single_envelope
+                self._filtering_params_kwargs = \
+                    {'evenlope': self.single_envelope}
         #: adjust enabled methods
         for method_name in self.disabled_methods:
             self.enabled_methods.remove(method_name)
@@ -144,8 +149,10 @@ class RESTModule(AppModule):
     def serialize_with_single_envelope(self, data):
         return {self.single_envelope: self.serialize(data)}
 
-    def filter_params(self):
-        return _filter_params(self.filter)
+    def filter_params(self, *params):
+        if params:
+            return _filter_params(*params, **self._filtering_params_kwargs)
+        return _filter_params_wfilter(self.filter)
 
     #: default routes
     def _index(self, dbset):
