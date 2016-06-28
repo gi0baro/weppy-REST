@@ -45,7 +45,7 @@ As you can see, the usage is very similar to the weppy `AppModule` class, but we
 This single line is enough to have a really simple REST api over the `Todo` model, since under the default behaviour the `RESTModule` class will expose 5 different routes:
 
 - an *index* route that will respond to `GET` requests on `/todos` path listing all the tasks in the database
-- a *get* route that will respond to `GET` requests on `/todos/<int:rid>` path returning a single task corresponding to the record id of the *rid* variable
+- a *read* route that will respond to `GET` requests on `/todos/<int:rid>` path returning a single task corresponding to the record id of the *rid* variable
 - a *create* route that will respond to `POST` requests on `/todos` that will create a new task in the database
 - an *update* route that will respond to `PUT` or `PATCH` requests on `/todos/<int:rid>` that will update the task corresponding to the record id of the *rid* variable
 - a *delete* route that will respond to `DELETE` requests on `/todos/<int:rid>` that will delete the task corresponding to the record id of the *rid* variable.
@@ -62,7 +62,7 @@ The `RESTModule` class accepts several parameters (*bold ones are required*) for
 | **model** | | the model to use |
 | serializer | `None` | a class to be used for serialization |
 | filter | `None` | a class to be used for filtering |
-| enabled_methods | `str` list: index, get, create, update, delete | the routes that should be enabled on the module |
+| enabled_methods | `str` list: index, create, read, update, delete | the routes that should be enabled on the module |
 | disabled_methods | `[]` | the routes that should be disabled on the module |
 | list_envelope | `'data'` | the envelope to use on the index route |
 | single_envelope | `None` | the envelope to use on all the routes except for index |
@@ -95,7 +95,7 @@ def fetch_todos():
 
 ### Customizing routed methods
 
-You can customize every route of the `RESTModule` using its `index`, `get`, `create`, `update` and `delete` decorators. In the next examples we'll override the routes with the default ones, in order to show the original code behind the default routes.
+You can customize every route of the `RESTModule` using its `index`, `create`, `read`, `update` and `delete` decorators. In the next examples we'll override the routes with the default ones, in order to show the original code behind the default routes.
 
 ```python
 from weppy import request
@@ -109,12 +109,12 @@ def todo_list(dbset):
 As you can see, an *index* method should accept the `dbset` parameter, that is injected by the module. This is the default one or the one you defined with the `get_dbset` decorator.
 
 ```python
-@todos.get()
+@todos.read()
 def todo_single(row):
     return todos.serialize_one(row)
 ```
 
-The *get* method should accept the `row` parameter that is injected by the module. Under default behaviour the module won't call your method if it doesn't find the requested record, but instead will return a 404 HTTP response.
+The *read* method should accept the `row` parameter that is injected by the module. Under default behaviour the module won't call your method if it doesn't find the requested record, but instead will return a 404 HTTP response.
 
 ```python
 @todos.create()
@@ -447,8 +447,8 @@ Also, this is the complete list of the handlers variables and their default valu
 ```python
 def init(self):
     self.index_handlers = [SetFetcher(self)]
-    self.get_handlers = [SetFetcher(self), RecordFetcher(self)]
     self.create_handlers = []
+    self.read_handlers = [SetFetcher(self), RecordFetcher(self)]
     self.update_handlers = [SetFetcher(self)]
     self.delete_handlers = [SetFetcher(self)]
 ```
@@ -458,7 +458,7 @@ We've also overridden the methods for the database set retrieval and the *index*
 - `_get_dbset`
 - `_index`
 - `_create`
-- `_get`
+- `_read`
 - `_update`
 - `_delete`
 - `build_error_404`

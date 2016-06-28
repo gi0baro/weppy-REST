@@ -20,7 +20,7 @@ from .filters import filter_params as _filter_params, \
 class RESTModule(AppModule):
     def __init__(
         self, app, name, import_name, model, serializer=None, filter=None,
-        enabled_methods=['index', 'get', 'create', 'update', 'delete'],
+        enabled_methods=['index', 'create', 'read', 'update', 'delete'],
         disabled_methods=[], list_envelope='data', single_envelope=None,
         use_envelope_on_filtering=False, url_prefix=None, hostname=None
     ):
@@ -53,8 +53,8 @@ class RESTModule(AppModule):
         self.use_envelope_on_filtering = use_envelope_on_filtering
         self.single_envelope = single_envelope
         self.index_handlers = [SetFetcher(self)]
-        self.get_handlers = [SetFetcher(self), RecordFetcher(self)]
         self.create_handlers = []
+        self.read_handlers = [SetFetcher(self), RecordFetcher(self)]
         self.update_handlers = [SetFetcher(self)]
         self.delete_handlers = [SetFetcher(self)]
         self.init()
@@ -80,7 +80,7 @@ class RESTModule(AppModule):
         #: route enabled methods
         self._methods_map = {
             'index': (self._path_base, 'get'),
-            'get': (self._path_rid, 'get'),
+            'read': (self._path_rid, 'get'),
             'create': (self._path_base, 'post'),
             'update': (self._path_rid, ['put', 'patch']),
             'delete': (self._path_rid, 'delete')
@@ -97,7 +97,6 @@ class RESTModule(AppModule):
         hostname = self.hostname or '__any__'
         name = self.name + "." + method
         for idx, route in enumerate(self.app.route.routes_in[hostname]):
-            print(idx, route[1].name)
             if route[1].name == name:
                 self.app.route.routes_in[hostname] = (
                     self.app.route.routes_in[hostname][:idx] +
@@ -160,7 +159,7 @@ class RESTModule(AppModule):
             self.model.table.ALL, paginate=self.get_pagination())
         return self.serialize_many(rows)
 
-    def _get(self, row):
+    def _read(self, row):
         return self.serialize_one(row)
 
     def _create(self):
@@ -199,9 +198,9 @@ class RESTModule(AppModule):
         handlers = self.index_handlers + handlers
         return self.route(self._path_base, handlers=handlers, methods='get')
 
-    def get(self, handlers=[]):
-        self._remove_default_route('get')
-        handlers = self.get_handlers + handlers
+    def read(self, handlers=[]):
+        self._remove_default_route('read')
+        handlers = self.read_handlers + handlers
         return self.route(self._path_rid, handlers=handlers, methods='get')
 
     def create(self, handlers=[]):
