@@ -47,7 +47,7 @@ This single line is enough to have a really simple REST api over the `Todo` mode
 - an *index* route that will respond to `GET` requests on `/todos` path listing all the tasks in the database
 - a *get* route that will respond to `GET` requests on `/todos/<int:rid>` path returning a single task corresponding to the record id of the *rid* variable
 - a *create* route that will respond to `POST` requests on `/todos` that will create a new task in the database
-- an *update* route that will respond to `UPDATE` or `PATCH` requests on `/todos/<int:rid>` that will update the task corresponding to the record id of the *rid* variable
+- an *update* route that will respond to `PUT` or `PATCH` requests on `/todos/<int:rid>` that will update the task corresponding to the record id of the *rid* variable
 - a *delete* route that will respond to `DELETE` requests on `/todos/<int:rid>` that will delete the task corresponding to the record id of the *rid* variable.
 
 ### RESTModule parameters
