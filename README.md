@@ -2,6 +2,8 @@
 
 weppy-REST is a REST extension for the [weppy framework](http://weppy.org).
 
+[![pip version](https://img.shields.io/pypi/v/weppy-rest.svg?style=flat)](https://pypi.python.org/pypi/weppy-REST) 
+
 ## Installation
 
 You can install weppy-REST using pip:
