@@ -60,7 +60,7 @@ class Filter(object):
     def __filter_params__(self, **extras):
         rv = filter_params(*self.attributes, {'envelope': self.envelope})
         for name in self._attrs_override_:
-            rv[name] = getattr(self, name)(params, **extras)
+            rv[name] = getattr(self, name)(**extras)
         return rv
 
 
@@ -75,5 +75,6 @@ def filter_params(*accepted_params, **kwargs):
         params = params[envelope]
     rv = sdict()
     for key in accepted_params:
-        rv[key] = params[key]
+        if key in params:
+            rv[key] = params[key]
     return rv
