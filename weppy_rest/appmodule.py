@@ -25,8 +25,8 @@ class RESTModule(AppModule):
         use_envelope_on_filtering=False, url_prefix=None, hostname=None
     ):
         self._fetcher_method = self._get_dbset
-        self.error404 = self.build_error_404
-        self.error422 = self.build_error_422
+        self.error_404 = self.build_error_404
+        self.error_422 = self.build_error_422
         self._basic_handlers = [ServiceHandler('json')]
         self._common_handlers = []
         super(RESTModule, self).__init__(
