@@ -58,7 +58,7 @@ class Filter(object):
         return self.__filter_params__(**kwargs)
 
     def __filter_params__(self, **extras):
-        rv = filter_params(*self.attributes, {'envelope': self.envelope})
+        rv = filter_params(*self.attributes, envelope=self.envelope)
         for name in self._attrs_override_:
             rv[name] = getattr(self, name)(**extras)
         return rv

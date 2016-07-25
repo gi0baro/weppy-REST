@@ -11,7 +11,7 @@ from setuptools import setup
 
 setup(
     name='weppy-REST',
-    version='0.2',
+    version='0.2.1',
     url='https://github.com/gi0baro/weppy-rest',
     license='BSD',
     author='Giovanni Barillari',
