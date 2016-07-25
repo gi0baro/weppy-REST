@@ -45,9 +45,9 @@ class Serializer(object):
             if not key.startswith('_') and callable(getattr(self, key)):
                 _attrs_override_.append(key)
         self._attrs_override_ = _attrs_override_
-        self.init()
+        self._init()
 
-    def init(self):
+    def _init(self):
         pass
 
     def __call__(self, *args, **kwargs):
