@@ -22,6 +22,7 @@ class Serializer(object):
     def __init__(self, model):
         self._model = model
         if not self.attributes:
+            self.attributes = []
             readable_map = {}
             for fieldname in self._model.table.fields:
                 readable_map[fieldname] = self._model.table[fieldname].readable

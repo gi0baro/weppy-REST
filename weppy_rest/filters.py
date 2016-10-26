@@ -22,6 +22,7 @@ class Filter(object):
     def __init__(self, model):
         self._model = model
         if not self.attributes:
+            self.attributes = []
             writable_map = {}
             for fieldname in self._model.table.fields:
                 val = (
