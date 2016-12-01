@@ -91,19 +91,6 @@ class RESTModule(AppModule):
             f = getattr(self, "_" + key)
             self.route(path, handlers=handlers, methods=methods, name=key)(f)
 
-    def _remove_default_route(self, method):
-        if method not in self.enabled_methods:
-            return
-        hostname = self.hostname or '__any__'
-        name = self.name + "." + method
-        for idx, route in enumerate(self.app.route.routes_in[hostname]):
-            if route[1].name == name:
-                self.app.route.routes_in[hostname] = (
-                    self.app.route.routes_in[hostname][:idx] +
-                    self.app.route.routes_in[hostname][idx + 1:])
-                del self.app.route.routes_out[name]
-                break
-
     @property
     def common_handlers(self):
         return self._common_handlers
@@ -194,30 +181,30 @@ class RESTModule(AppModule):
         return f
 
     def index(self, handlers=[]):
-        self._remove_default_route('index')
         handlers = self.index_handlers + handlers
-        return self.route(self._path_base, handlers=handlers, methods='get')
+        return self.route(
+            self._path_base, handlers=handlers, methods='get', name='index')
 
     def read(self, handlers=[]):
-        self._remove_default_route('read')
         handlers = self.read_handlers + handlers
-        return self.route(self._path_rid, handlers=handlers, methods='get')
+        return self.route(
+            self._path_rid, handlers=handlers, methods='get', name='read')
 
     def create(self, handlers=[]):
-        self._remove_default_route('create')
         handlers = self.create_handlers + handlers
-        return self.route(self._path_base, handlers=handlers, methods='post')
+        return self.route(
+            self._path_base, handlers=handlers, methods='post', name='create')
 
     def update(self, handlers=[]):
-        self._remove_default_route('update')
         handlers = self.update_handlers + handlers
         return self.route(
-            self._path_rid, handlers=handlers, methods=['put', 'patch'])
+            self._path_rid, handlers=handlers, methods=['put', 'patch'],
+            name='update')
 
     def delete(self, handlers=[]):
-        self._remove_default_route('delete')
         handlers = self.delete_handlers + handlers
-        return self.route(self._path_rid, handlers=handlers, methods='delete')
+        return self.route(
+            self._path_rid, handlers=handlers, methods='delete', name='delete')
 
     def on_404(self, f):
         self.error_404 = f
