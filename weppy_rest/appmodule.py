@@ -5,32 +5,75 @@
 
     Provides REST AppModule for weppy
 
-    :copyright: (c) 2016 by Giovanni Barillari
+    :copyright: (c) 2017 by Giovanni Barillari
     :license: BSD, see LICENSE for more details.
 """
 
 from weppy import AppModule, sdict, request, response
-from weppy.tools import ServiceHandler
+from weppy.tools import ServicePipe
 from .helpers import SetFetcher, RecordFetcher
 from .serializers import serialize as _serialize
-from .filters import filter_params as _filter_params, \
-    filter_params_with_filter as _filter_params_wfilter
+from .parsers import (
+    parse_params as _parse_params,
+    parse_params_with_parser as _parse_params_wparser)
 
 
 class RESTModule(AppModule):
+    @classmethod
+    def from_app(
+        cls, app, import_name, name, model, serializer, parser,
+        enabled_methods, disabled_methods, list_envelope, single_envelope,
+        use_envelope_on_parsing, url_prefix, hostname
+    ):
+        return cls(
+            app, name, import_name, model, serializer, parser,
+            enabled_methods, disabled_methods, list_envelope, single_envelope,
+            use_envelope_on_parsing, url_prefix, hostname
+        )
+
+    @classmethod
+    def from_module(
+        cls, mod, import_name, name, model, serializer, parser,
+        enabled_methods, disabled_methods, list_envelope, single_envelope,
+        use_envelope_on_parsing, url_prefix, hostname
+    ):
+        if '.' in name:
+            raise RuntimeError(
+                "Nested app modules' names should not contains dots"
+            )
+        name = mod.name + '.' + name
+        if url_prefix and not url_prefix.startswith('/'):
+            url_prefix = '/' + url_prefix
+        module_url_prefix = (mod.url_prefix + (url_prefix or '')) \
+            if mod.url_prefix else url_prefix
+        hostname = hostname or mod.hostname
+        return cls(
+            mod.app, name, import_name, model, serializer, parser,
+            enabled_methods, disabled_methods, list_envelope, single_envelope,
+            use_envelope_on_parsing, module_url_prefix, hostname, mod.pipeline
+        )
+
     def __init__(
-        self, app, name, import_name, model, serializer=None, filter=None,
+        self, app, name, import_name, model, serializer=None, parser=None,
         enabled_methods=['index', 'create', 'read', 'update', 'delete'],
         disabled_methods=[], list_envelope='data', single_envelope=None,
-        use_envelope_on_filtering=False, url_prefix=None, hostname=None
+        use_envelope_on_parsing=False, url_prefix=None, hostname=None,
+        pipeline=[]
     ):
         self._fetcher_method = self._get_dbset
         self.error_404 = self.build_error_404
         self.error_422 = self.build_error_422
-        self._basic_handlers = [ServiceHandler('json')]
-        self._common_handlers = []
+        add_service_pipe = True
+        super_pipeline = list(pipeline)
+        for pipe in super_pipeline:
+            if isinstance(pipe, ServicePipe):
+                add_service_pipe = False
+                break
+        if add_service_pipe:
+            super_pipeline.insert(0, ServicePipe('json'))
         super(RESTModule, self).__init__(
-            app, name, import_name, url_prefix=url_prefix, hostname=hostname)
+            app, name, import_name, url_prefix=url_prefix, hostname=hostname,
+            pipeline=super_pipeline)
         self.ext = self.app.ext.REST
         self._pagination = sdict()
         for key in (
@@ -42,21 +85,21 @@ class RESTModule(AppModule):
         self._path_rid = self.ext.config.base_id_path
         self._serializer_class = serializer or \
             self.ext.config.default_serializer
-        self._filter_class = filter or self.ext.config.default_filter
-        self._filtering_params_kwargs = {}
+        self._parser_class = parser or self.ext.config.default_parser
+        self._parsing_params_kwargs = {}
         self.model = model
         self.serializer = self._serializer_class(self.model)
-        self.filter = self._filter_class(self.model)
+        self.parser = self._parser_class(self.model)
         self.enabled_methods = enabled_methods
         self.disabled_methods = disabled_methods
         self.list_envelope = list_envelope
-        self.use_envelope_on_filtering = use_envelope_on_filtering
+        self.use_envelope_on_parsing = use_envelope_on_parsing
         self.single_envelope = single_envelope
-        self.index_handlers = [SetFetcher(self)]
-        self.create_handlers = []
-        self.read_handlers = [SetFetcher(self), RecordFetcher(self)]
-        self.update_handlers = [SetFetcher(self)]
-        self.delete_handlers = [SetFetcher(self)]
+        self.index_pipeline = [SetFetcher(self)]
+        self.create_pipeline = []
+        self.read_pipeline = [SetFetcher(self), RecordFetcher(self)]
+        self.update_pipeline = [SetFetcher(self)]
+        self.delete_pipeline = [SetFetcher(self)]
         self.init()
         self._after_initialize()
 
@@ -70,9 +113,9 @@ class RESTModule(AppModule):
         self.serialize_one = self.serialize
         if self.single_envelope:
             self.serialize_one = self.serialize_with_single_envelope
-            if self.use_envelope_on_filtering:
-                self.filter.envelope = self.single_envelope
-                self._filtering_params_kwargs = \
+            if self.use_envelope_on_parsing:
+                self.parser.envelope = self.single_envelope
+                self._parsing_params_kwargs = \
                     {'evenlope': self.single_envelope}
         #: adjust enabled methods
         for method_name in self.disabled_methods:
@@ -87,17 +130,9 @@ class RESTModule(AppModule):
         }
         for key in self.enabled_methods:
             path, methods = self._methods_map[key]
-            handlers = getattr(self, key + "_handlers")
+            pipeline = getattr(self, key + "_pipeline")
             f = getattr(self, "_" + key)
-            self.route(path, handlers=handlers, methods=methods, name=key)(f)
-
-    @property
-    def common_handlers(self):
-        return self._common_handlers
-
-    @common_handlers.setter
-    def common_handlers(self, handlers):
-        self._common_handlers = self._basic_handlers + handlers
+            self.route(path, pipeline=pipeline, methods=methods, name=key)(f)
 
     def _get_dbset(self):
         return self.model.all()
@@ -126,19 +161,19 @@ class RESTModule(AppModule):
             return {'errors': errors.as_dict()}
         return {'errors': {'request': 'unprocessable entity'}}
 
-    def serialize(self, data):
-        return _serialize(data, self.serializer)
+    def serialize(self, data, **extras):
+        return _serialize(data, self.serializer, **extras)
 
-    def serialize_with_list_envelope(self, data):
-        return {self.list_envelope: self.serialize(data)}
+    def serialize_with_list_envelope(self, data, **extras):
+        return {self.list_envelope: self.serialize(data, **extras)}
 
-    def serialize_with_single_envelope(self, data):
-        return {self.single_envelope: self.serialize(data)}
+    def serialize_with_single_envelope(self, data, **extras):
+        return {self.single_envelope: self.serialize(data, **extras)}
 
-    def filter_params(self, *params):
+    def parse_params(self, *params):
         if params:
-            return _filter_params(*params, **self._filtering_params_kwargs)
-        return _filter_params_wfilter(self.filter)
+            return _parse_params(*params, **self._parsing_params_kwargs)
+        return _parse_params_wparser(self.parser)
 
     #: default routes
     def _index(self, dbset):
@@ -150,7 +185,8 @@ class RESTModule(AppModule):
         return self.serialize_one(row)
 
     def _create(self):
-        attrs = self.filter_params()
+        response.status = 201
+        attrs = self.parse_params()
         r = self.model.create(**attrs)
         if r.errors:
             response.status = 422
@@ -158,7 +194,7 @@ class RESTModule(AppModule):
         return self.serialize_one(r.id)
 
     def _update(self, dbset, rid):
-        attrs = self.filter_params()
+        attrs = self.parse_params()
         r = dbset.where(self.model.id == rid).validate_and_update(**attrs)
         if r.errors:
             response.status = 422
@@ -180,31 +216,31 @@ class RESTModule(AppModule):
         self._fetcher_method = f
         return f
 
-    def index(self, handlers=[]):
-        handlers = self.index_handlers + handlers
+    def index(self, pipeline=[]):
+        pipeline = self.index_pipeline + pipeline
         return self.route(
-            self._path_base, handlers=handlers, methods='get', name='index')
+            self._path_base, pipeline=pipeline, methods='get', name='index')
 
-    def read(self, handlers=[]):
-        handlers = self.read_handlers + handlers
+    def read(self, pipeline=[]):
+        pipeline = self.read_pipeline + pipeline
         return self.route(
-            self._path_rid, handlers=handlers, methods='get', name='read')
+            self._path_rid, pipeline=pipeline, methods='get', name='read')
 
-    def create(self, handlers=[]):
-        handlers = self.create_handlers + handlers
+    def create(self, pipeline=[]):
+        pipeline = self.create_pipeline + pipeline
         return self.route(
-            self._path_base, handlers=handlers, methods='post', name='create')
+            self._path_base, pipeline=pipeline, methods='post', name='create')
 
-    def update(self, handlers=[]):
-        handlers = self.update_handlers + handlers
+    def update(self, pipeline=[]):
+        pipeline = self.update_pipeline + pipeline
         return self.route(
-            self._path_rid, handlers=handlers, methods=['put', 'patch'],
+            self._path_rid, pipeline=pipeline, methods=['put', 'patch'],
             name='update')
 
-    def delete(self, handlers=[]):
-        handlers = self.delete_handlers + handlers
+    def delete(self, pipeline=[]):
+        pipeline = self.delete_pipeline + pipeline
         return self.route(
-            self._path_rid, handlers=handlers, methods='delete', name='delete')
+            self._path_rid, pipeline=pipeline, methods='delete', name='delete')
 
     def on_404(self, f):
         self.error_404 = f

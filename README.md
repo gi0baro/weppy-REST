@@ -33,18 +33,17 @@ class Todo(Model):
     created_at = Field('datetime')
 ```
 
-Then, in order to expose REST apis for your `Todo` model, you can use the `RESTModule` class:
+Then, in order to expose REST apis for your `Todo` model, you can use the `rest_module` method on your application or on any application module:
 
 ```python
-from weppy_rest import RESTModule
 from myapp import app, Todo
 
-todos = RESTModule(app, 'api_todo', __name__, Todo, url_prefix='todos')
+todos = app.rest_module(__name__, 'api_todo', Todo, url_prefix='todos')
 ```
 
-As you can see, the usage is very similar to the weppy `AppModule` class, but we also passed the involved model to the module initialization.
+As you can see, the usage is very similar to the weppy application modules, but we also passed the involved model to the module initialization.
 
-This single line is enough to have a really simple REST api over the `Todo` model, since under the default behaviour the `RESTModule` class will expose 5 different routes:
+This single line is enough to have a really simple REST api over the `Todo` model, since under the default behaviour rest modules will expose 5 different routes:
 
 - an *index* route that will respond to `GET` requests on `/todos` path listing all the tasks in the database
 - a *read* route that will respond to `GET` requests on `/todos/<int:rid>` path returning a single task corresponding to the record id of the *rid* variable
@@ -52,29 +51,28 @@ This single line is enough to have a really simple REST api over the `Todo` mode
 - an *update* route that will respond to `PUT` or `PATCH` requests on `/todos/<int:rid>` that will update the task corresponding to the record id of the *rid* variable
 - a *delete* route that will respond to `DELETE` requests on `/todos/<int:rid>` that will delete the task corresponding to the record id of the *rid* variable.
 
-### RESTModule parameters
+### REST module parameters
 
-The `RESTModule` class accepts several parameters (*bold ones are required*) for its configuration:
+The `rest_module` method accepts several parameters (*bold ones are required*) for its configuration:
 
 | parameter | default | description |
 | --- | --- | --- |
-| **app** | | see `AppModule` |
-| **name** | | see `AppModule` |
-| **import_name** | | see `AppModule` |
+| **import_name** | | as for standard modules |
+| **name** | | as for standard modules |
 | **model** | | the model to use |
 | serializer | `None` | a class to be used for serialization |
-| filter | `None` | a class to be used for filtering |
+| parser | `None` | a class to be used for parsing |
 | enabled_methods | `str` list: index, create, read, update, delete | the routes that should be enabled on the module |
 | disabled_methods | `[]` | the routes that should be disabled on the module |
 | list_envelope | `'data'` | the envelope to use on the index route |
 | single_envelope | `None` | the envelope to use on all the routes except for index |
-| use\_envelope\_on\_filtering | `False` | if set to `True` will use the envelope specified in *single_envelope* option also on filtering |
-| url_prefix | `None` | see `AppModule` |
-| hostname | `None` | see `AppModule` |
+| use\_envelope\_on\_parsing | `False` | if set to `True` will use the envelope specified in *single_envelope* option also on parsing |
+| url_prefix | `None` | as for standard modules |
+| hostname | `None` | as for standard modules |
 
 ### Customizing the database set
 
-Under default behavior, any `RESTModule` will use `Model.all()` as the database set on every operation.
+Under default behavior, any REST module will use `Model.all()` as the database set on every operation.
 
 When you need to customize it, you can use the `get_dbset` decorator. 
 For example, you may gonna use the weppy auth module:
@@ -97,7 +95,7 @@ def fetch_todos():
 
 ### Customizing routed methods
 
-You can customize every route of the `RESTModule` using its `index`, `create`, `read`, `update` and `delete` decorators. In the next examples we'll override the routes with the default ones, in order to show the original code behind the default routes.
+You can customize every route of the REST module using its `index`, `create`, `read`, `update` and `delete` decorators. In the next examples we'll override the routes with the default ones, in order to show the original code behind the default routes.
 
 ```python
 from weppy import request
@@ -121,7 +119,7 @@ The *read* method should accept the `row` parameter that is injected by the modu
 ```python
 @todos.create()
 def todo_new():
-    attrs = todos.filter_params()
+    attrs = todos.parse_params()
     resp = Todo.create(**attrs)
     if resp.errors:
         response.status = 422
@@ -134,7 +132,7 @@ The *create* method won't need any parameters, and is responsible of creating ne
 ```python
 @todos.update()
 def todo_edit(dbset, rid):
-    attrs = todos.filter_params()
+    attrs = todos.parse_params()
     resp = dbset.where(Todo.id == rid).validate_and_update(**attrs)
     if resp.errors:
         response.status = 422
@@ -231,9 +229,8 @@ from weppy_rest import Serializer
 class TodoSerializer(Serializer):
     attributes = ['id', 'title']
     
-todos = RESTModule(
-    app, 'api_todo', __name__, Todo, 
-    serializer=TodoSerializer, url_prefix='todos')
+todos = app.rest_module(
+    __name__, 'api_todo', Todo, serializer=TodoSerializer, url_prefix='todos')
 ```
 
 Serializers are handy when you want to add custom function to serialize something present in your rows. For instance, let's say you have a very simple tagging system:
@@ -278,8 +275,8 @@ class TodoSerializer(Serializer):
 class TodoDetailSerializer(TodoSerializer):
     include = ['is_done']
     
-todos = RESTModule(
-    app, 'api_todo', __name__, Todo, 
+todos = app.module(
+    __name__, 'api_todo', Todo, 
     serializer=TodoDetailSerializer, url_prefix='todos')
 
 @todos.index()
@@ -288,11 +285,11 @@ def todo_list(dbset):
     return serialize(rows, TodoSerializer)
 ```
 
-> **Note:** under default behaviour the `RESTModule.serialize` method will use the serializer passed to the module.
+> **Note:** under default behaviour the `serialize` method will use the serializer passed to the module.
 
-### Filtering input
+### Parsing input
 
-Opposite to the serialization, you will have input filtering to parse JSON requests and perform operations on the records.
+Opposite to the serialization, you will have input parsing to parse JSON requests and perform operations on the records.
 
 Under the default behaviour, the REST extension will use the `form_rw` attribute of the involved model, and overwrite the results with the contents of the `rest_rw` attribute if present.
 
@@ -312,7 +309,7 @@ class Todo(Model):
     }
 ```
 
-the REST extension will filter the input to allow just the *title* and the *is_done* fields, while with this:
+the REST extension will parse the input to allow just the *title* and the *is_done* fields, while with this:
 
 ```python
 from weppy.dal import Model, Field
@@ -335,36 +332,35 @@ class Todo(Model):
 
 the REST extension will allow also the *created_at* field.
 
-#### Filters
+#### Parsers
 
-Very similarly to the `Serializer` class, the extension provides also a `Filter` ones:
+Very similarly to the `Serializer` class, the extension provides also a `Parser` one:
 
 ```python
-from weppy_rest import Filter
+from weppy_rest import Parser
 
-class TodoFilter(Filter):
+class TodoParser(Parser):
     attributes = ['title']
     
-todos = RESTModule(
-    app, 'api_todo', __name__, Todo, 
-    filter=TodoFilter, url_prefix='todos')
+todos = app.rest_module(
+    __name__, app, 'api_todo', Todo, parser=TodoParser, url_prefix='todos')
 ```
 
-As for serializers, you can define `attributes`, `include` and `exclude` lists in a filter, and add custom methods that will parse the params:
+As for serializers, you can define `attributes`, `include` and `exclude` lists in a parser, and add custom methods that will parse the params:
 
 ```python
-class TodoFilter(Filter):
+class TodoParser(Parser):
     attributes = ['title']
     
     def created_at(self, params):
         # some code
 ```
 
-There's also an additional attribute that you can set over a `Filter` which is the `envelope` one, if you expect to have enveloped bodies over `POST`, `PUT` and `PATCH` requests.
+There's also an additional attribute that you can set over a `Parser` which is the `envelope` one, if you expect to have enveloped bodies over `POST`, `PUT` and `PATCH` requests.
 
 ### Pagination
 
-The `RESTModule` will perform pagination over the *index* route under the default behaviour. This is performed with the `paginate` option during the select and the call to the `get_pagination` method:
+REST modules perform pagination over the *index* route under the default behaviour. This is performed with the `paginate` option during the select and the call to the `get_pagination` method:
 
 ```python
 def get_pagination(self):
@@ -391,8 +387,9 @@ You can customize the name of the query params or the default page sizes with th
 This is the list of all the configuration variables available on the extension for customization – the default values are set:
 
 ```python
+app.config.REST.default_module_class = RESTModule
 app.config.REST.default_serializer = Serializer
-app.config.REST.default_filter = Filter
+app.config.REST.default_parser = Parser
 app.config.REST.page_param = 'page'
 app.config.REST.pagesize_param = 'page_size'
 app.config.REST.min_pagesize = 10
@@ -402,17 +399,19 @@ app.config.REST.base_path = '/'
 app.config.REST.base_id_path = '/<int:rid>'
 ```
 
-This configuration will be used by all the instances of the `RESTModule` class, unless overridden.
+This configuration will be used by all the REST modules you create, unless overridden.
 
 #### Subclassing
 
-Subclassing the original `RESTModule` class can be useful when you need to apply the same behaviour to several modules:
+Under the default behavior, every REST module will use the `RESTModule` class. You can create as many subclasses from this one when you need to apply the same behaviour to several modules:
 
 ```python
+from weppy_rest import RESTModule
+
 class MyRESTModule(RESTModule):
     def init(self):
         self.disabled_methods = ['delete']
-        self.index_handlers.append(MyCustomHandler())
+        self.index_pipeline.append(MyCustomPipe())
         self.list_envelope = 'objects'
         self.single_envelope = self.model.__name__.lower()
         
@@ -425,34 +424,38 @@ class MyRESTModule(RESTModule):
         rv['meta'] = {'total': dbset.count()}
         return rv
         
-todos = MyRestModule(app, 'api_todo', __name__, Todo, url_prefix='todos')
-tags = MyRestModule(app, 'api_tag', __name__, Tag, url_prefix='tags')
+todos = app.rest_module(
+    __name__, app, 'api_todo', Todo, url_prefix='todos', 
+    module_class=MyRESTModule)
+tags = app.rest_module(
+    __name__, app, 'api_tag', Tag, url_prefix='tags',
+    module_class=MyRESTModule)
 ```
 
-As you can see, we defined a subclass of the `RESTModule` one and used the `init` method to customize the class initialization for our needs. We **strongly** recommend to use this method and avoid overriding the `__init__` of the class unless you know what you're doing.
+As you can see, we defined a subclass of the `RESTModule` one and used the `init` method to customize the class initialization for our needs. We **strongly** recommend to use this method and avoid overriding the `__init__` of the class unless you really know what you're doing.
 
-Using the `init` method, we disabled the *delete* route over the module, added a custom handler over the *index* route and configured the envelope rules.
+Using the `init` method, we disabled the *delete* route over the module, added a custom pipe over the *index* route and configured the envelope rules.
 
 Here is a list of variables you may want to change inside the `init` method:
 
 - model
 - serializer
-- filter
+- parser
 - enabled_methods
 - disabled_methods
 - list_envelope
 - single_envelope
-- use\_envelope\_on\_filtering
+- use\_envelope\_on\_parsing
 
-Also, this is the complete list of the handlers variables and their default values:
+Also, this is the complete list of the pipeline variables and their default values:
 
 ```python
 def init(self):
-    self.index_handlers = [SetFetcher(self)]
-    self.create_handlers = []
-    self.read_handlers = [SetFetcher(self), RecordFetcher(self)]
-    self.update_handlers = [SetFetcher(self)]
-    self.delete_handlers = [SetFetcher(self)]
+    self.index_pipeline = [SetFetcher(self)]
+    self.create_pipeline = []
+    self.read_pipeline = [SetFetcher(self), RecordFetcher(self)]
+    self.update_pipeline = [SetFetcher(self)]
+    self.delete_pipeline = [SetFetcher(self)]
 ```
 
 We've also overridden the methods for the database set retrieval and the *index* route. As you can see, these methods are starting with the `_` since are the default ones and you can still override them with decorators. This is the complete list of methods you may want to override instead of using decorators:

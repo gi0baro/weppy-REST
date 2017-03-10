@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    weppy_rest.filters
+    weppy_rest.parsers
     ------------------
 
     Provides REST de-serialization tools
 
-    :copyright: (c) 2016 by Giovanni Barillari
+    :copyright: (c) 2017 by Giovanni Barillari
     :license: BSD, see LICENSE for more details.
 """
 
@@ -13,7 +13,7 @@ from weppy._compat import iteritems
 from weppy import request, sdict
 
 
-class Filter(object):
+class Parser(object):
     attributes = []
     include = []
     exclude = []
@@ -25,11 +25,7 @@ class Filter(object):
             self.attributes = []
             writable_map = {}
             for fieldname in self._model.table.fields:
-                val = (
-                    self._model.table[fieldname].writable and
-                    self._model.table[fieldname].type != 'id'
-                )
-                writable_map[fieldname] = val
+                writable_map[fieldname] = self._model.table[fieldname].writable
             if hasattr(self._model, 'rest_rw'):
                 self.attributes = []
                 for key, value in iteritems(self._model.rest_rw):
@@ -56,20 +52,20 @@ class Filter(object):
         pass
 
     def __call__(self, **kwargs):
-        return self.__filter_params__(**kwargs)
+        return self.__parse_params__(**kwargs)
 
-    def __filter_params__(self, **extras):
-        rv = filter_params(*self.attributes, envelope=self.envelope)
+    def __parse_params__(self, **extras):
+        rv = parse_params(*self.attributes, envelope=self.envelope)
         for name in self._attrs_override_:
             rv[name] = getattr(self, name)(**extras)
         return rv
 
 
-def filter_params_with_filter(filter_instance, **extras):
-    return filter_instance(**extras)
+def parse_params_with_parser(parser_instance, **extras):
+    return parser_instance(**extras)
 
 
-def filter_params(*accepted_params, **kwargs):
+def parse_params(*accepted_params, **kwargs):
     envelope = kwargs.get('envelope')
     params = request.body_params
     if envelope:
