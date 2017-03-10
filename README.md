@@ -155,10 +155,10 @@ def todo_del(dbset, rid):
 
 The *update* and *delete* methods are quite similar, since they should accept the `dbset` parameter and the `rid` one, which will be the record id requested by the client.
 
-All the decorators accept an additional `handlers` parameter that you can use to add custom handlers to the routed function:
+All the decorators accept an additional `pipeline` parameter that you can use to add custom pipes to the routed function:
 
 ```python
-@todos.index(handlers=[MyCustomHandler()])
+@todos.index(pipeline=[MyCustomPipe()])
 def todo_index:
     # code
 ```
