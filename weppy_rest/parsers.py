@@ -30,7 +30,7 @@ class Parser(object):
                 self.attributes = []
                 for key, value in iteritems(self._model.rest_rw):
                     if isinstance(value, tuple):
-                        writable = tuple[1]
+                        writable = value[1]
                     else:
                         writable = value
                     writable_map[key] = writable

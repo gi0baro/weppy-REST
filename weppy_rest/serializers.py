@@ -30,7 +30,7 @@ class Serializer(object):
                 self.attributes = []
                 for key, value in iteritems(self._model.rest_rw):
                     if isinstance(value, tuple):
-                        readable = tuple[0]
+                        readable = value[0]
                     else:
                         readable = value
                     readable_map[key] = readable
