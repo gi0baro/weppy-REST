@@ -25,7 +25,7 @@ The weppy-REST extension is intended to be used with weppy models, and it uses a
 Let's say, for example that you have a task manager app, with a `Todo` model like this:
 
 ```python
-from weppy.dal import Model, Field
+from weppy.orm import Model, Field
 
 class Todo(Model):
     title = Field()
@@ -184,7 +184,7 @@ Under the default behaviour, the REST extension will use the `form_rw` attribute
 For example, with this model:
 
 ```python
-from weppy.dal import Model, Field
+from weppy.orm import Model, Field
 
 class Todo(Model):
     title = Field()
@@ -200,7 +200,7 @@ class Todo(Model):
 the REST extension will serialize just the *title* and the *is_done* fields, while with this:
 
 ```python
-from weppy.dal import Model, Field
+from weppy.orm import Model, Field
 
 class Todo(Model):
     title = Field()
@@ -236,7 +236,7 @@ todos = app.rest_module(
 Serializers are handy when you want to add custom function to serialize something present in your rows. For instance, let's say you have a very simple tagging system:
 
 ```python
-from weppy.dal import belongs_to, has_many
+from weppy.orm import belongs_to, has_many
 
 class Todo(Model):
     has_many({'tags': 'TodoTag'})
@@ -296,7 +296,7 @@ Under the default behaviour, the REST extension will use the `form_rw` attribute
 For example, with this model:
 
 ```python
-from weppy.dal import Model, Field
+from weppy.orm import Model, Field
 
 class Todo(Model):
     title = Field()
@@ -312,7 +312,7 @@ class Todo(Model):
 the REST extension will parse the input to allow just the *title* and the *is_done* fields, while with this:
 
 ```python
-from weppy.dal import Model, Field
+from weppy.orm import Model, Field
 
 class Todo(Model):
     title = Field()
