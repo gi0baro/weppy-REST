@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 
+from functools import wraps
 from weppy import response
 from weppy.pipeline import Pipe
 
@@ -42,3 +43,10 @@ class RecordFetcher(Pipe):
         ).select(self.mod.model.table.ALL).first()
         del kwargs['rid']
         del kwargs['dbset']
+
+
+def wrap_method_on_obj(method, obj):
+    @wraps(method)
+    def wrapped(*args, **kwargs):
+        return method(obj, *args, **kwargs)
+    return wrapped

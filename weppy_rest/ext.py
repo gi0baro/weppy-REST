@@ -12,8 +12,9 @@
 from weppy.extensions import Extension, listen_signal
 from weppy.orm.models import MetaModel
 from .appmodule import AppModule, RESTModule
-from .serializers import Serializer
+from .helpers import wrap_method_on_obj
 from .parsers import Parser
+from .serializers import Serializer
 
 
 class REST(Extension):
@@ -44,7 +45,8 @@ class REST(Extension):
 
     def on_load(self):
         setattr(AppModule, 'rest_module', rest_module_from_module)
-        self.app.rest_module = rest_module_from_app
+        self.app.rest_module = wrap_method_on_obj(
+            rest_module_from_app, self.app)
 
     @property
     def module(self):
