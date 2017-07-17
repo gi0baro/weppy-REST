@@ -22,34 +22,34 @@ app.use_extension(REST)
 
 The weppy-REST extension is intended to be used with weppy models, and it uses application modules to build APIs over them. 
 
-Let's say, for example that you have a task manager app, with a `Todo` model like this:
+Let's say, for example that you have a task manager app, with a `Task` model like this:
 
 ```python
 from weppy.orm import Model, Field
 
-class Todo(Model):
-    title = Field()
-    is_done = Field('bool')
-    created_at = Field('datetime')
+class Task(Model):
+    title = Field.string()
+    is_completed = Field.bool()
+    created_at = Field.datetime()
 ```
 
-Then, in order to expose REST apis for your `Todo` model, you can use the `rest_module` method on your application or on any application module:
+Then, in order to expose REST apis for your `Task` model, you can use the `rest_module` method on your application or on any application module:
 
 ```python
-from myapp import app, Todo
+from myapp import app, Task
 
-todos = app.rest_module(__name__, 'api_todo', Todo, url_prefix='todos')
+tasks = app.rest_module(__name__, 'api_task', Task, url_prefix='tasks')
 ```
 
 As you can see, the usage is very similar to the weppy application modules, but we also passed the involved model to the module initialization.
 
-This single line is enough to have a really simple REST api over the `Todo` model, since under the default behaviour rest modules will expose 5 different routes:
+This single line is enough to have a really simple REST api over the `Task` model, since under the default behaviour rest modules will expose 5 different routes:
 
-- an *index* route that will respond to `GET` requests on `/todos` path listing all the tasks in the database
-- a *read* route that will respond to `GET` requests on `/todos/<int:rid>` path returning a single task corresponding to the record id of the *rid* variable
-- a *create* route that will respond to `POST` requests on `/todos` that will create a new task in the database
-- an *update* route that will respond to `PUT` or `PATCH` requests on `/todos/<int:rid>` that will update the task corresponding to the record id of the *rid* variable
-- a *delete* route that will respond to `DELETE` requests on `/todos/<int:rid>` that will delete the task corresponding to the record id of the *rid* variable.
+- an *index* route that will respond to `GET` requests on `/tasks` path listing all the tasks in the database
+- a *read* route that will respond to `GET` requests on `/tasks/<int:rid>` path returning a single task corresponding to the record id of the *rid* variable
+- a *create* route that will respond to `POST` requests on `/tasks` that will create a new task in the database
+- an *update* route that will respond to `PUT` or `PATCH` requests on `/tasks/<int:rid>` that will update the task corresponding to the record id of the *rid* variable
+- a *delete* route that will respond to `DELETE` requests on `/tasks/<int:rid>` that will delete the task corresponding to the record id of the *rid* variable.
 
 ### REST module parameters
 
@@ -80,17 +80,17 @@ For example, you may gonna use the weppy auth module:
 ```python
 from myapp import auth
 
-@todos.get_dbset
-def fetch_todos():
-    return auth.user.todos
+@tasks.get_dbset
+def fetch_tasks():
+    return auth.user.tasks
 ```
 
 or you may have some soft-deletions strategies and want to expose just the records which are not deleted:
 
 ```python
-@todos.get_dbset
-def fetch_todos():
-    return Todo.where(lambda todo: todo.is_deleted == False)
+@tasks.get_dbset
+def fetch_tasks():
+    return Task.where(lambda t: t.is_deleted == False)
 ```
 
 ### Customizing routed methods
@@ -100,56 +100,56 @@ You can customize every route of the REST module using its `index`, `create`, `r
 ```python
 from weppy import request
 
-@todos.index()
-def todo_list(dbset):
-    rows = dbset.select(paginate=todos.get_pagination())
-    return todos.serialize_many(rows)
+@tasks.index()
+def task_list(dbset):
+    rows = dbset.select(paginate=tasks.get_pagination())
+    return tasks.serialize_many(rows)
 ```
 
 As you can see, an *index* method should accept the `dbset` parameter, that is injected by the module. This is the default one or the one you defined with the `get_dbset` decorator.
 
 ```python
-@todos.read()
-def todo_single(row):
-    return todos.serialize_one(row)
+@tasks.read()
+def task_single(row):
+    return tasks.serialize_one(row)
 ```
 
 The *read* method should accept the `row` parameter that is injected by the module. Under default behaviour the module won't call your method if it doesn't find the requested record, but instead will return a 404 HTTP response.
 
 ```python
-@todos.create()
-def todo_new():
-    attrs = todos.parse_params()
-    resp = Todo.create(**attrs)
+@tasks.create()
+def task_new():
+    attrs = tasks.parse_params()
+    resp = Task.create(**attrs)
     if resp.errors:
         response.status = 422
-        return todos.error_422(resp.errors)
-    return todos.serialize_one(resp.id)
+        return tasks.error_422(resp.errors)
+    return tasks.serialize_one(resp.id)
 ```
 
 The *create* method won't need any parameters, and is responsible of creating new records in the database.
 
 ```python
-@todos.update()
-def todo_edit(dbset, rid):
-    attrs = todos.parse_params()
-    resp = dbset.where(Todo.id == rid).validate_and_update(**attrs)
+@tasks.update()
+def task_edit(dbset, rid):
+    attrs = tasks.parse_params()
+    resp = dbset.where(Task.id == rid).validate_and_update(**attrs)
     if resp.errors:
         response.status = 422
-        return todos.error_422(resp.errors)
+        return tasks.error_422(resp.errors)
     elif not resp.updated:
         response.status = 404
-        return todos.error_404()
-    return todos.serialize_one(Todo.get(rid))
+        return tasks.error_404()
+    return tasks.serialize_one(Task.get(rid))
 ```
 
 ```python
-@todos.delete()
-def todo_del(dbset, rid):
-    deleted = dbset.where(Todo.id == rid).delete()
+@tasks.delete()
+def task_del(dbset, rid):
+    deleted = dbset.where(Task.id == rid).delete()
     if not deleted:
         response.status = 404
-        return todos.error_404()
+        return tasks.error_404()
     return {}
 ```
 
@@ -158,8 +158,8 @@ The *update* and *delete* methods are quite similar, since they should accept th
 All the decorators accept an additional `pipeline` parameter that you can use to add custom pipes to the routed function:
 
 ```python
-@todos.index(pipeline=[MyCustomPipe()])
-def todo_index:
+@tasks.index(pipeline=[MyCustomPipe()])
+def task_index:
     # code
 ```
 
@@ -168,12 +168,12 @@ def todo_index:
 You can define custom methods for the HTTP 404 and 422 errors that will generate the JSON output using the `on_404` and `on_422` decorators:
 
 ```python
-@todos.on_404
-def todo_404err():
+@tasks.on_404
+def task_404err():
     return {'error': 'this is my 404 error'}
     
-@todos.on_422
-def todo_422err(errors):
+@tasks.on_422
+def task_422err(errors):
     return {'error': 422, 'validation': errors.as_dict()}
 ```
 
@@ -186,10 +186,10 @@ For example, with this model:
 ```python
 from weppy.orm import Model, Field
 
-class Todo(Model):
-    title = Field()
-    is_done = Field('bool')
-    created_at = Field('datetime')
+class Task(Model):
+    title = Field.string()
+    is_completed = Field.bool()
+    created_at = Field.datetime()
     
     form_rw = {
         'id': False,
@@ -197,15 +197,15 @@ class Todo(Model):
     }
 ```
 
-the REST extension will serialize just the *title* and the *is_done* fields, while with this:
+the REST extension will serialize just the *title* and the *is_completed* fields, while with this:
 
 ```python
 from weppy.orm import Model, Field
 
-class Todo(Model):
-    title = Field()
-    is_done = Field('bool')
-    created_at = Field('datetime')
+class Task(Model):
+    title = Field.string()
+    is_completed = Field.bool()
+    created_at = Field.datetime()
     
     form_rw = {
         'id': False,
@@ -226,11 +226,11 @@ Whenever you need more control over the serialization, you can use the `Serializ
 ```python
 from weppy_rest import Serializer
 
-class TodoSerializer(Serializer):
+class TaskSerializer(Serializer):
     attributes = ['id', 'title']
     
-todos = app.rest_module(
-    __name__, 'api_todo', Todo, serializer=TodoSerializer, url_prefix='todos')
+tasks = app.rest_module(
+    __name__, 'api_task', Task, serializer=TaskSerializer, url_prefix='tasks')
 ```
 
 Serializers are handy when you want to add custom function to serialize something present in your rows. For instance, let's say you have a very simple tagging system:
@@ -238,18 +238,18 @@ Serializers are handy when you want to add custom function to serialize somethin
 ```python
 from weppy.orm import belongs_to, has_many
 
-class Todo(Model):
-    has_many({'tags': 'TodoTag'})
+class Task(Model):
+    has_many({'tags': 'TaskTag'})
 
-class TodoTag(Model):
-    belongs_to('todo')
-    name = Field()
+class TaskTag(Model):
+    belongs_to('task')
+    name = Field.string()
 ```
 
-and you want to serialize the tags as an embedded list of the todo. Then you just have to add a `tags` method to your serializer:
+and you want to serialize the tags as an embedded list in your task. Then you just have to add a `tags` method to your serializer:
 
 ```python
-class TodoSerializer(Serializer):
+class TaskSerializer(Serializer):
     attributes = ['id', 'title']
     
     def tags(self, row):
@@ -269,20 +269,20 @@ You can also use different serialization for the list route and the other ones:
 ```python
 from weppy_rest import Serializer, serialize
 
-class TodoSerializer(Serializer):
+class TaskSerializer(Serializer):
     attributes = ['id', 'title']
     
-class TodoDetailSerializer(TodoSerializer):
-    include = ['is_done']
+class TaskDetailSerializer(TaskSerializer):
+    include = ['is_completed']
     
-todos = app.module(
-    __name__, 'api_todo', Todo, 
-    serializer=TodoDetailSerializer, url_prefix='todos')
+tasks = app.module(
+    __name__, 'api_task', Task, 
+    serializer=TaskDetailSerializer, url_prefix='tasks')
 
-@todos.index()
-def todo_list(dbset):
-    rows = dbset.select(paginate=todos.get_pagination())
-    return serialize(rows, TodoSerializer)
+@tasks.index()
+def task_list(dbset):
+    rows = dbset.select(paginate=tasks.get_pagination())
+    return serialize(rows, TaskSerializer)
 ```
 
 > **Note:** under default behaviour the `serialize` method will use the serializer passed to the module.
@@ -298,10 +298,10 @@ For example, with this model:
 ```python
 from weppy.orm import Model, Field
 
-class Todo(Model):
-    title = Field()
-    is_done = Field('bool')
-    created_at = Field('datetime')
+class Task(Model):
+    title = Field.string()
+    is_completed = Field.bool()
+    created_at = Field.datetime()
     
     form_rw = {
         'id': False,
@@ -309,15 +309,15 @@ class Todo(Model):
     }
 ```
 
-the REST extension will parse the input to allow just the *title* and the *is_done* fields, while with this:
+the REST extension will parse the input to allow just the *title* and the *is_completed* fields, while with this:
 
 ```python
 from weppy.orm import Model, Field
 
-class Todo(Model):
-    title = Field()
-    is_done = Field('bool')
-    created_at = Field('datetime')
+class Task(Model):
+    title = Field.string()
+    is_completed = Field.bool()
+    created_at = Field.datetime()
     
     form_rw = {
         'id': False,
@@ -339,17 +339,17 @@ Very similarly to the `Serializer` class, the extension provides also a `Parser`
 ```python
 from weppy_rest import Parser
 
-class TodoParser(Parser):
+class TaskParser(Parser):
     attributes = ['title']
     
-todos = app.rest_module(
-    __name__, app, 'api_todo', Todo, parser=TodoParser, url_prefix='todos')
+tasks = app.rest_module(
+    __name__, app, 'api_task', Task, parser=TaskParser, url_prefix='tasks')
 ```
 
 As for serializers, you can define `attributes`, `include` and `exclude` lists in a parser, and add custom methods that will parse the params:
 
 ```python
-class TodoParser(Parser):
+class TaskParser(Parser):
     attributes = ['title']
     
     def created_at(self, params):
@@ -424,8 +424,8 @@ class MyRESTModule(RESTModule):
         rv['meta'] = {'total': dbset.count()}
         return rv
         
-todos = app.rest_module(
-    __name__, app, 'api_todo', Todo, url_prefix='todos', 
+tasks = app.rest_module(
+    __name__, app, 'api_task', Task, url_prefix='tasks', 
     module_class=MyRESTModule)
 tags = app.rest_module(
     __name__, app, 'api_tag', Tag, url_prefix='tags',
