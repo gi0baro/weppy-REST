@@ -219,6 +219,10 @@ class RESTModule(AppModule):
         self._fetcher_method = f
         return f
 
+    def get_row(self, f):
+        self._select_method = f
+        return f
+
     def index(self, pipeline=[]):
         pipeline = self.index_pipeline + pipeline
         return self.route(
