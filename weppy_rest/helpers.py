@@ -38,9 +38,8 @@ class RecordFetcher(Pipe):
         return next_pipe(**kwargs)
 
     def fetch_record(self, kwargs):
-        kwargs['row'] = kwargs['dbset'].where(
-            self.mod.model.id == kwargs['rid']
-        ).select(self.mod.model.table.ALL).first()
+        kwargs['row'] = self.mod._select_method(
+            kwargs['dbset'].where(self.mod.model.id == kwargs['rid']))
         del kwargs['rid']
         del kwargs['dbset']
 

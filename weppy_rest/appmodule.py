@@ -61,6 +61,7 @@ class RESTModule(AppModule):
         pipeline=[]
     ):
         self._fetcher_method = self._get_dbset
+        self._select_method = self._get_row
         self.error_404 = self.build_error_404
         self.error_422 = self.build_error_422
         add_service_pipe = True
@@ -137,11 +138,14 @@ class RESTModule(AppModule):
     def _get_dbset(self):
         return self.model.all()
 
+    def _get_row(self, dbset):
+        return dbset.select(limitby=(0, 1)).first()
+
     def get_pagination(self):
         try:
             page = int(request.query_params[self._pagination.page_param] or 1)
             assert page > 0
-        except:
+        except Exception:
             page = 1
         try:
             page_size = int(
@@ -149,7 +153,7 @@ class RESTModule(AppModule):
             assert (
                 self._pagination.min_pagesize <= page_size <=
                 self._pagination.max_pagesize)
-        except:
+        except Exception:
             page_size = self._pagination.default_pagesize
         return page, page_size
 
@@ -177,8 +181,7 @@ class RESTModule(AppModule):
 
     #: default routes
     def _index(self, dbset):
-        rows = dbset.select(
-            self.model.table.ALL, paginate=self.get_pagination())
+        rows = dbset.select(paginate=self.get_pagination())
         return self.serialize_many(rows)
 
     def _read(self, row):
