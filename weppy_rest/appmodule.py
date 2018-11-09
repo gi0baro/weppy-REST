@@ -62,6 +62,7 @@ class RESTModule(AppModule):
     ):
         self._fetcher_method = self._get_dbset
         self._select_method = self._get_row
+        self._after_parse = self._after_parse_params
         self.error_404 = self.build_error_404
         self.error_422 = self.build_error_422
         add_service_pipe = True
@@ -176,8 +177,14 @@ class RESTModule(AppModule):
 
     def parse_params(self, *params):
         if params:
-            return _parse_params(*params, **self._parsing_params_kwargs)
-        return _parse_params_wparser(self.parser)
+            rv = _parse_params(*params, **self._parsing_params_kwargs)
+        else:
+            rv = _parse_params_wparser(self.parser)
+        self._after_parse_params(rv)
+        return rv
+
+    def _after_parse_params(self, attrs):
+        pass
 
     #: default routes
     def _index(self, dbset):
@@ -255,4 +262,8 @@ class RESTModule(AppModule):
 
     def on_422(self, f):
         self.error_422 = f
+        return f
+
+    def after_parse_params(self, f):
+        self._after_parse = f
         return f

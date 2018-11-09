@@ -11,6 +11,7 @@
 
 from weppy._compat import iteritems
 from weppy import request, sdict
+from weppy.utils import cachedprop
 
 
 class Parser(object):
@@ -54,11 +55,29 @@ class Parser(object):
     def __call__(self, **kwargs):
         return self.__parse_params__(**kwargs)
 
+    @cachedprop
+    def _attributes_set(self):
+        return set(self.attributes)
+
     def __parse_params__(self, **extras):
-        rv = parse_params(*self.attributes, envelope=self.envelope)
+        params = _envelope_filter(request.body_params, self.envelope)
+        rv = _parse(self._attributes_set, params)
         for name in self._attrs_override_:
-            rv[name] = getattr(self, name)(**extras)
+            rv[name] = getattr(self, name)(params, **extras)
         return rv
+
+
+def _envelope_filter(params, envelope=None):
+    if not envelope:
+        return params
+    return params[envelope]
+
+
+def _parse(accepted_set, params):
+    rv = sdict()
+    for key in accepted_set & set(params):
+        rv[key] = params[key]
+    return rv
 
 
 def parse_params_with_parser(parser_instance, **extras):
@@ -66,12 +85,5 @@ def parse_params_with_parser(parser_instance, **extras):
 
 
 def parse_params(*accepted_params, **kwargs):
-    envelope = kwargs.get('envelope')
-    params = request.body_params
-    if envelope:
-        params = params[envelope]
-    rv = sdict()
-    for key in accepted_params:
-        if key in params:
-            rv[key] = params[key]
-    return rv
+    params = _envelope_filter(request.body_params, kwargs.get('envelope'))
+    return _parse(set(accepted_params), params)
