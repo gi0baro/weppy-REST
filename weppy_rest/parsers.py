@@ -28,11 +28,11 @@ class VParserDefinition(object):
 
 class ProcParserDefinition(object):
     __slots__ = ('f', '_inst_count_')
-    _inst_count_ = 0
+    _all_inst_count_ = 0
 
     def __init__(self):
-        self._inst_count_ = self.__class__._inst_count_
-        self.__class__._inst_count_ += 1
+        self._inst_count_ = self.__class__._all_inst_count_
+        self.__class__._all_inst_count_ += 1
 
     def __call__(self, f):
         self.f = f
