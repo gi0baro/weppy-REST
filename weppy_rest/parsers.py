@@ -9,14 +9,30 @@
     :license: BSD, see LICENSE for more details.
 """
 
-from weppy._compat import iteritems, with_metaclass
+from collections import OrderedDict
+from weppy._compat import iteritems, itervalues, with_metaclass
 from weppy import request, sdict
 from weppy.utils import cachedprop
 
 
-class ValueParserDefinition(object):
+class VParserDefinition(object):
+    __slots__ = ('param', 'f')
+
     def __init__(self, param):
         self.param = param
+
+    def __call__(self, f):
+        self.f = f
+        return self
+
+
+class ProcParserDefinition(object):
+    __slots__ = ('f', '_inst_count_')
+    _inst_count_ = 0
+
+    def __init__(self):
+        self._inst_count_ = self.__class__._inst_count_
+        self.__class__._inst_count_ += 1
 
     def __call__(self, f):
         self.f = f
@@ -27,16 +43,28 @@ class MetaParser(type):
     def __new__(cls, name, bases, attrs):
         new_class = type.__new__(cls, name, bases, attrs)
         all_vparsers = {}
+        all_procs = OrderedDict()
         declared_vparsers = {}
+        declared_procs = OrderedDict()
+        procs = []
         for key, value in list(attrs.items()):
-            if isinstance(value, ValueParserDefinition):
+            if isinstance(value, VParserDefinition):
                 declared_vparsers[key] = value
+            elif isinstance(value, ProcParserDefinition):
+                procs.append((key, value))
+        procs.sort(key=lambda x: x[1]._inst_count_)
+        declared_procs.update(procs)
         new_class._declared_vparsers_ = declared_vparsers
+        new_class._declared_procs_ = declared_procs
         for base in reversed(new_class.__mro__[1:]):
             if hasattr(base, '_declared_vparsers_'):
                 all_vparsers.update(base._declared_vparsers_)
+            if hasattr(base, '_declared_procs_'):
+                all_procs.update(base._declared_procs_)
         all_vparsers.update(declared_vparsers)
+        all_procs.update(declared_procs)
         new_class._all_vparsers_ = all_vparsers
+        new_class._all_procs_ = all_procs
         vparams = []
         vparsers = {}
         for vparser in all_vparsers.values():
@@ -48,7 +76,11 @@ class MetaParser(type):
 
     @classmethod
     def parse_value(cls, param):
-        return ValueParserDefinition(param)
+        return VParserDefinition(param)
+
+    @classmethod
+    def processor(cls):
+        return ProcParserDefinition()
 
 
 class Parser(with_metaclass(MetaParser)):
@@ -80,7 +112,10 @@ class Parser(with_metaclass(MetaParser)):
                 if el in self.attributes:
                     self.attributes.remove(el)
         _attrs_override_ = []
-        for key in set(dir(self)) - set(self._all_vparsers_.keys()):
+        for key in (
+            set(dir(self)) - set(self._all_vparsers_.keys()) -
+            set(self._all_procs_.keys())
+        ):
             if not key.startswith('_') and callable(getattr(self, key)):
                 _attrs_override_.append(key)
         self._attrs_override_ = _attrs_override_
@@ -100,9 +135,11 @@ class Parser(with_metaclass(MetaParser)):
         params = _envelope_filter(request.body_params, self.envelope)
         rv = _parse(self._attributes_set, params)
         for name in set(params) & self._vparams_:
-            rv[name] = self._vparsers_[name](self, params, **extras)
+            rv[name] = self._vparsers_[name](self, params[name])
         for name in self._attrs_override_:
             rv[name] = getattr(self, name)(params, **extras)
+        for processor in itervalues(self._all_procs_):
+            processor(self, params, rv)
         return rv
 
 
