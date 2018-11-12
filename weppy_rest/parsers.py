@@ -9,12 +9,49 @@
     :license: BSD, see LICENSE for more details.
 """
 
-from weppy._compat import iteritems
+from weppy._compat import iteritems, with_metaclass
 from weppy import request, sdict
 from weppy.utils import cachedprop
 
 
-class Parser(object):
+class ValueParserDefinition(object):
+    def __init__(self, param):
+        self.param = param
+
+    def __call__(self, f):
+        self.f = f
+        return self
+
+
+class MetaParser(type):
+    def __new__(cls, name, bases, attrs):
+        new_class = type.__new__(cls, name, bases, attrs)
+        all_vparsers = {}
+        declared_vparsers = {}
+        for key, value in list(attrs.items()):
+            if isinstance(value, ValueParserDefinition):
+                declared_vparsers[key] = value
+        new_class._declared_vparsers_ = declared_vparsers
+        for base in reversed(new_class.__mro__[1:]):
+            if hasattr(base, '_declared_vparsers_'):
+                all_vparsers.update(base._declared_vparsers_)
+        all_vparsers.update(declared_vparsers)
+        new_class._all_vparsers_ = all_vparsers
+        vparams = []
+        vparsers = {}
+        for vparser in all_vparsers.values():
+            vparsers[vparser.param] = vparser.f
+            vparams.append(vparser.param)
+        new_class._vparsers_ = vparsers
+        new_class._vparams_ = set(vparams)
+        return new_class
+
+    @classmethod
+    def parse_value(cls, param):
+        return ValueParserDefinition(param)
+
+
+class Parser(with_metaclass(MetaParser)):
     attributes = []
     include = []
     exclude = []
@@ -43,7 +80,7 @@ class Parser(object):
                 if el in self.attributes:
                     self.attributes.remove(el)
         _attrs_override_ = []
-        for key in dir(self):
+        for key in set(dir(self)) - set(self._all_vparsers_.keys()):
             if not key.startswith('_') and callable(getattr(self, key)):
                 _attrs_override_.append(key)
         self._attrs_override_ = _attrs_override_
@@ -62,6 +99,8 @@ class Parser(object):
     def __parse_params__(self, **extras):
         params = _envelope_filter(request.body_params, self.envelope)
         rv = _parse(self._attributes_set, params)
+        for name in set(params) & self._vparams_:
+            rv[name] = self._vparsers_[name](self, params, **extras)
         for name in self._attrs_override_:
             rv[name] = getattr(self, name)(params, **extras)
         return rv
