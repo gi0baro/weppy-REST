@@ -51,7 +51,7 @@ class MetaParser(type):
             if isinstance(value, VParserDefinition):
                 declared_vparsers[key] = value
             elif isinstance(value, ProcParserDefinition):
-                procs.append((key, value))
+                procs.append((key, value.f))
         procs.sort(key=lambda x: x[1]._inst_count_)
         declared_procs.update(procs)
         new_class._declared_vparsers_ = declared_vparsers
