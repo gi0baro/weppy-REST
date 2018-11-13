@@ -51,7 +51,7 @@ class MetaParser(type):
             if isinstance(value, VParserDefinition):
                 declared_vparsers[key] = value
             elif isinstance(value, ProcParserDefinition):
-                procs.append((key, value.f))
+                procs.append((key, value))
         procs.sort(key=lambda x: x[1]._inst_count_)
         declared_procs.update(procs)
         new_class._declared_vparsers_ = declared_vparsers
@@ -139,7 +139,7 @@ class Parser(with_metaclass(MetaParser)):
         for name in self._attrs_override_:
             rv[name] = getattr(self, name)(params, **extras)
         for processor in itervalues(self._all_procs_):
-            processor(self, params, rv)
+            processor.f(self, params, rv)
         return rv
 
 
