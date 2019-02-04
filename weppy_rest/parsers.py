@@ -10,7 +10,6 @@
 """
 
 from collections import OrderedDict
-from weppy._compat import iteritems, itervalues, with_metaclass
 from weppy import request, sdict
 from weppy.utils import cachedprop
 
@@ -83,7 +82,7 @@ class MetaParser(type):
         return ProcParserDefinition()
 
 
-class Parser(with_metaclass(MetaParser)):
+class Parser(metaclass=MetaParser):
     attributes = []
     include = []
     exclude = []
@@ -98,13 +97,13 @@ class Parser(with_metaclass(MetaParser)):
                 writable_map[fieldname] = self._model.table[fieldname].writable
             if hasattr(self._model, 'rest_rw'):
                 self.attributes = []
-                for key, value in iteritems(self._model.rest_rw):
+                for key, value in self._model.rest_rw.items():
                     if isinstance(value, tuple):
                         writable = value[1]
                     else:
                         writable = value
                     writable_map[key] = writable
-            for fieldname, writable in iteritems(writable_map):
+            for fieldname, writable in writable_map.items():
                 if writable:
                     self.attributes.append(fieldname)
             self.attributes += self.include
@@ -138,7 +137,7 @@ class Parser(with_metaclass(MetaParser)):
             rv[name] = self._vparsers_[name](self, params[name])
         for name in self._attrs_override_:
             rv[name] = getattr(self, name)(params, **extras)
-        for processor in itervalues(self._all_procs_):
+        for processor in self._all_procs_.values():
             processor.f(self, params, rv)
         return rv
 

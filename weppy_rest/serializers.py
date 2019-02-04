@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 
-from weppy._compat import iteritems
 from weppy.orm.objects import Rows
 
 
@@ -28,13 +27,13 @@ class Serializer(object):
                 readable_map[fieldname] = self._model.table[fieldname].readable
             if hasattr(self._model, 'rest_rw'):
                 self.attributes = []
-                for key, value in iteritems(self._model.rest_rw):
+                for key, value in self._model.rest_rw.items():
                     if isinstance(value, tuple):
                         readable = value[0]
                     else:
                         readable = value
                     readable_map[key] = readable
-            for fieldname, readable in iteritems(readable_map):
+            for fieldname, readable in readable_map.items():
                 if readable:
                     self.attributes.append(fieldname)
             self.attributes += self.include
