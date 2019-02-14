@@ -67,10 +67,12 @@ class RESTModule(AppModule):
         self.error_422 = self.build_error_422
         add_service_pipe = True
         super_pipeline = list(pipeline)
-        for pipe in super_pipeline:
-            if isinstance(pipe, ServicePipe):
-                add_service_pipe = False
-                break
+        if any(
+            isinstance(pipe, ServicePipe) for pipe in app.pipeline
+        ) or any(
+            isinstance(pipe, ServicePipe) for pipe in super_pipeline
+        ):
+            add_service_pipe = False
         if add_service_pipe:
             super_pipeline.insert(0, ServicePipe('json'))
         super(RESTModule, self).__init__(
