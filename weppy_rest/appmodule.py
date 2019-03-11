@@ -94,8 +94,8 @@ class RESTModule(AppModule):
         self.model = model
         self.serializer = self._serializer_class(self.model)
         self.parser = self._parser_class(self.model)
-        self.enabled_methods = enabled_methods
-        self.disabled_methods = disabled_methods
+        self.enabled_methods = list(enabled_methods)
+        self.disabled_methods = list(disabled_methods)
         self.list_envelope = list_envelope
         self.use_envelope_on_parsing = use_envelope_on_parsing
         self.single_envelope = single_envelope
